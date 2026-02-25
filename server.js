@@ -9,33 +9,45 @@ const generateFullQAReport = require("./generator/index");
 
 const app = express();
 
-// Enable CORS for frontend
-// Enable CORS for frontend (ALLOW ALL LOCAL DEV)
+/* ==============================
+   CORS (Allow all for now)
+============================== */
 app.use(
   cors({
-    origin: true, // allow all origins in development
+    origin: true,
     credentials: true,
-  })
+  }),
 );
 
-// Middleware
 app.use(express.json());
 
-// Health check route
+/* ==============================
+   Ensure reports folder exists
+============================== */
+const reportsDir = path.join(__dirname, "reports");
+
+if (!fs.existsSync(reportsDir)) {
+  fs.mkdirSync(reportsDir, { recursive: true });
+  console.log("📁 Reports folder created");
+}
+
+/* ==============================
+   Health Check
+============================== */
 app.get("/", (req, res) => {
   res.send("🚀 AI QA Agent Backend is Running");
 });
 
-/**
- * MAIN API
- * POST /generate
- */
+/* ==============================
+   MAIN API
+============================== */
 app.post("/generate", async (req, res) => {
   try {
     const { url, type } = req.body;
 
     if (!url) {
       return res.status(400).json({
+        success: false,
         error: "URL is required",
       });
     }
@@ -44,11 +56,11 @@ app.post("/generate", async (req, res) => {
     console.log("URL:", url);
     console.log("Type:", type || "generic");
 
-    // 🔥 Generate report via Groq
+    // 🔥 Generate report
     const report = await generateFullQAReport(url, type || "generic");
 
-    // Save report
-    const reportPath = path.join(__dirname, "reports", "report.txt");
+    // Save report safely
+    const reportPath = path.join(reportsDir, "report.txt");
     fs.writeFileSync(reportPath, report, "utf-8");
 
     console.log("✅ QA Report Generated Successfully");
@@ -59,7 +71,7 @@ app.post("/generate", async (req, res) => {
       report,
     });
   } catch (error) {
-    console.error("❌ Server Error:", error.message);
+    console.error("❌ Server Error:", error);
 
     res.status(500).json({
       success: false,
@@ -68,7 +80,9 @@ app.post("/generate", async (req, res) => {
   }
 });
 
-// Render compatible port
+/* ==============================
+   Start Server
+============================== */
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
