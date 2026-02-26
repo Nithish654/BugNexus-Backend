@@ -1,29 +1,27 @@
 // @ts-nocheck
-const chromeLauncher = require("chrome-launcher");
+const lighthouse = require("lighthouse");
+const puppeteer = require("puppeteer");
 
 async function runLighthouse(url) {
-  const lighthouse = (await import("lighthouse")).default;
-
-  const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
-
-  const chrome = await chromeLauncher.launch({
-    chromePath,
-    chromeFlags: [
-      "--headless",
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
       "--no-sandbox",
-      "--disable-gpu",
+      "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
+      "--disable-gpu",
     ],
   });
 
-  const options = {
-    logLevel: "error",
-    output: "json",
-    port: chrome.port,
-    disableStorageReset: true,
-  };
+  const wsEndpoint = browser.wsEndpoint();
+  const port = new URL(wsEndpoint).port;
 
-  const runnerResult = await lighthouse(url, options);
+  const runnerResult = await lighthouse(url, {
+    port,
+    output: "json",
+    logLevel: "error",
+    disableStorageReset: true,
+  });
 
   const categories = runnerResult.lhr.categories;
 
@@ -34,11 +32,7 @@ async function runLighthouse(url) {
     bestPractices: Math.round(categories["best-practices"].score * 100),
   };
 
-  try {
-    await chrome.kill();
-  } catch (e) {
-    console.log("Chrome cleanup skipped");
-  }
+  await browser.close();
 
   return result;
 }

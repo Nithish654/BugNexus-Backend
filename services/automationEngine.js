@@ -4,11 +4,8 @@ const path = require("path");
 const axios = require("axios");
 
 async function runAutomation(url) {
-  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
-
   const browser = await puppeteer.launch({
-    executablePath,
-    headless: "new",
+    headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -18,7 +15,6 @@ async function runAutomation(url) {
   });
 
   const page = await browser.newPage();
-
   const consoleErrors = [];
 
   page.on("console", (msg) => {
@@ -42,7 +38,6 @@ async function runAutomation(url) {
 
     const forms = document.querySelectorAll("form").length;
     const buttons = document.querySelectorAll("button").length;
-
     const pageText = document.body.innerText.toLowerCase();
 
     return {
