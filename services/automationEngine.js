@@ -4,9 +4,17 @@ const path = require("path");
 const axios = require("axios");
 
 async function runAutomation(url) {
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+
   const browser = await puppeteer.launch({
+    executablePath,
     headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
   });
 
   const page = await browser.newPage();
@@ -50,18 +58,16 @@ async function runAutomation(url) {
   });
 
   /* ===============================
-     🔗 Broken Link Detection
+     Broken Link Detection
   =============================== */
   const brokenLinks = [];
-
-  // Remove duplicate links
   const uniqueLinks = [...new Set(data.links)];
 
   for (const link of uniqueLinks) {
     try {
       const response = await axios.get(link, {
         timeout: 5000,
-        validateStatus: () => true, // allow all status codes
+        validateStatus: () => true,
       });
 
       if (response.status >= 400) {

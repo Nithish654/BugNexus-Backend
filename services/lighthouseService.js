@@ -4,7 +4,10 @@ const chromeLauncher = require("chrome-launcher");
 async function runLighthouse(url) {
   const lighthouse = (await import("lighthouse")).default;
 
+  const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+
   const chrome = await chromeLauncher.launch({
+    chromePath,
     chromeFlags: [
       "--headless",
       "--no-sandbox",
@@ -17,7 +20,7 @@ async function runLighthouse(url) {
     logLevel: "error",
     output: "json",
     port: chrome.port,
-    disableStorageReset: true, // important for Windows
+    disableStorageReset: true,
   };
 
   const runnerResult = await lighthouse(url, options);
