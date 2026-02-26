@@ -1,8 +1,9 @@
 // @ts-nocheck
-const lighthouse = require("lighthouse");
 const puppeteer = require("puppeteer");
 
 async function runLighthouse(url) {
+  const lighthouse = (await import("lighthouse")).default;
+
   const browser = await puppeteer.launch({
     headless: true,
     args: [
