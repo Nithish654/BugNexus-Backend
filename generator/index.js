@@ -1,43 +1,54 @@
 // @ts-nocheck
 const fs = require("fs");
 const path = require("path");
-const crawlWebsite = require("../crawler/crawler");
-const buildPrompt = require("../ai/promptBuilder");
+
+// ✅ FIXED PATH — using the strict deterministic prompt
+const buildPrompt = require("../services/promptBuilder");
+
+// Groq generator (leave this as is)
 const generateQAReport = require("../ai/qaGenerator");
 
 /**
  * Core function used by server.js
  */
-async function generateFullQAReport(url, type = "generic") {
+async function generateFullQAReport(
+  url,
+  type = "generic",
+  structuredData = {},
+) {
   if (!url) {
     throw new Error("URL is required");
   }
 
-  console.log("🔎 Crawling:", url);
-
-  const crawlData = await crawlWebsite(url);
-
-  if (!crawlData) {
-    throw new Error("Website crawling failed");
+  if (!structuredData || Object.keys(structuredData).length === 0) {
+    throw new Error("Structured data missing");
   }
 
-  console.log("🤖 Generating AI QA Report via Groq...");
+  console.log("🤖 Generating AI QA Report via Groq (Deterministic Mode)...");
 
-  const prompt = buildPrompt(crawlData, url, type);
+  // ✅ Build STRICT deterministic prompt
+  const prompt = buildPrompt(structuredData, url, type);
 
   const aiReport = await generateQAReport(prompt);
 
-  if (!aiReport || aiReport.length < 10) {
-    throw new Error("AI returned empty report");
+  if (!aiReport || aiReport.length < 20) {
+    throw new Error("AI returned invalid report");
   }
 
   return aiReport;
 }
 
 /**
- * CLI mode support (optional)
+ * CLI mode support
  */
 async function runCLI() {
+  const { runAutomation } = require("../services/automationEngine");
+  const { runLighthouse } = require("../services/lighthouseService");
+  const { generateIssues } = require("../services/issueEngine");
+  const {
+    generateExecutiveSummary,
+  } = require("../services/executiveSummaryEngine");
+
   const url = process.argv[2];
   const type = process.argv[3] || "generic";
 
@@ -47,7 +58,29 @@ async function runCLI() {
   }
 
   try {
-    const report = await generateFullQAReport(url, type);
+    console.log("🤖 Running Automation Pipeline...");
+
+    const automationData = await runAutomation(url);
+    const lighthouseScores = await runLighthouse(url);
+    const issues = generateIssues({
+      automationData,
+      lighthouseScores,
+    });
+
+    const executiveSummary = generateExecutiveSummary({
+      issues,
+      lighthouseScores,
+      type,
+    });
+
+    const structuredData = {
+      ...automationData,
+      lighthouseScores,
+      issues,
+      executiveSummary,
+    };
+
+    const report = await generateFullQAReport(url, type, structuredData);
 
     const reportPath = path.join(__dirname, "..", "reports", "report.txt");
 
@@ -60,7 +93,6 @@ async function runCLI() {
   }
 }
 
-// Only run CLI if called directly
 if (require.main === module) {
   runCLI();
 }
